@@ -3,30 +3,37 @@ export function getApiBaseUrl(): string {
 
   if (url && url.trim()) {
     url = url.trim();
-    if (!url.startsWith('http') && !url.startsWith('/')) {
-      url = `https://${url}`;
+    // Fix internal Render service hostname (e.g. "phonemail-api" -> "https://phonemail-api.onrender.com/api")
+    if (!url.includes('.') && !url.startsWith('/')) {
+      url = `https://${url}.onrender.com/api`;
+    } else {
+      if (!url.startsWith('http') && !url.startsWith('/')) {
+        url = `https://${url}`;
+      }
+      if (url.startsWith('http') && !url.endsWith('/api')) {
+        url = `${url.replace(/\/$/, '')}/api`;
+      }
     }
-    if (url.startsWith('http') && !url.endsWith('/api')) {
-      url = `${url.replace(/\/$/, '')}/api`;
-    }
-    return url;
   }
 
   // Dynamic runtime fallback based on browser domain
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname;
 
+    // Always prefer local server when developing locally
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:5000/api';
     }
 
-    if (host.includes('onrender.com')) {
-      const apiHost = host.replace('-web.onrender.com', '-api.onrender.com');
-      return `https://${apiHost}/api`;
+    if (!url || url.includes('phonemail-api/api')) {
+      if (host.includes('onrender.com')) {
+        const apiHost = host.replace('-web.onrender.com', '-api.onrender.com');
+        return `https://${apiHost}/api`;
+      }
     }
   }
 
-  return '/api';
+  return url || '/api';
 }
 
 export function getToken(): string | null {

@@ -31,10 +31,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: phonemail-api
-          property: host
+        value: https://phonemail-api.onrender.com
 
 databases:
   # 3. Render Managed PostgreSQL Database
