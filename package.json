@@ -1,0 +1,30 @@
+{
+  "name": "phonemail-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/web run build",
+    "build": "npm run build:api && npm run build:web",
+    "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
+    "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
+    "prisma:seed": "npx tsx ./prisma/seed.ts",
+    "prisma:postgresql": "node -e \"const fs=require('fs'); let s=fs.readFileSync('./prisma/schema.prisma','utf8'); s=s.replace(/provider = \\\"sqlite\\\"/, 'provider = \\\"postgresql\\\"'); fs.writeFileSync('./prisma/schema.prisma',s);\" && npx prisma generate --schema=./prisma/schema.prisma",
+    "prisma:sqlite": "node -e \"const fs=require('fs'); let s=fs.readFileSync('./prisma/schema.prisma','utf8'); s=s.replace(/provider = \\\"postgresql\\\"/, 'provider = \\\"sqlite\\\"'); fs.writeFileSync('./prisma/schema.prisma',s);\" && npx prisma generate --schema=./prisma/schema.prisma",
+    "render:api-build": "npm run prisma:postgresql && npm run build:api",
+    "render:api-start": "npx prisma db push --schema=./prisma/schema.prisma && npx tsx ./prisma/seed.ts && node apps/api/dist/index.js",
+    "test": "npx tsx ./test-suite.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prisma": "^5.10.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

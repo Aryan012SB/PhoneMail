@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: phonemail_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: phonemail
+      POSTGRES_USER: phonemail
+      POSTGRES_PASSWORD: phonemailpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phonemail -d phonemail"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: phonemail_api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DEV_MODE: "true"
+      JWT_SECRET: phonemail_secure_jwt_secret_key_2026_hackathon
+      DATABASE_URL: postgresql://phonemail:phonemailpass@postgres:5432/phonemail?schema=public
+      DEFAULT_OTP_PROVIDER: mock
+      DEFAULT_SMS_PROVIDER: mock
+      DEFAULT_IVR_PROVIDER: mock
+      CLIENT_URL: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: phonemail_web
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -1,0 +1,142 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String               @id @default(uuid())
+  phoneNumber    String               @unique
+  emailAddress   String               @unique
+  passwordHash   String?
+  name           String               @default("PhoneMail User")
+  profilePicture String?
+  language       String               @default("en")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  aliases        Alias[]
+  sentEmails     Email[]              @relation("SentEmails")
+  recipients     Recipient[]
+  memberships    ConversationMember[]
+  userEmailState UserEmailFolder[]
+  logs           AuditLog[]
+}
+
+model Otp {
+  id          String   @id @default(uuid())
+  phoneNumber String
+  codeHash    String
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Alias {
+  id        String   @id @default(uuid())
+  userId    String
+  alias     String   @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  subject   String?
+  isGroup   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  emails  Email[]
+  members ConversationMember[]
+}
+
+model ConversationMember {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Email {
+  id            String   @id @default(uuid())
+  senderId      String
+  subject       String
+  body          String
+  messageId     String   @unique @default(uuid())
+  threadId      String?
+  parentEmailId String?
+  isDraft       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sender      User              @relation("SentEmails", fields: [senderId], references: [id], onDelete: Cascade)
+  thread      Conversation?     @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  parent      Email?            @relation("EmailReplies", fields: [parentEmailId], references: [id], onDelete: SetNull)
+  replies     Email[]           @relation("EmailReplies")
+  recipients  Recipient[]
+  attachments Attachment[]
+  userStates  UserEmailFolder[]
+}
+
+model Recipient {
+  id             String    @id @default(uuid())
+  emailId        String
+  recipientId    String?
+  recipientEmail String
+  type           String    @default("TO") // TO | CC
+  status         String    @default("DELIVERED")
+  readAt         DateTime?
+
+  email     Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  user      User? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+}
+
+model Attachment {
+  id          String   @id @default(uuid())
+  emailId     String
+  filename    String
+  mimeType    String
+  size        Int
+  storagePath String
+  createdAt   DateTime @default(now())
+
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+}
+
+model UserEmailFolder {
+  id         String   @id @default(uuid())
+  userId     String
+  emailId    String
+  isSpam     Boolean  @default(false)
+  isTrash    Boolean  @default(false)
+  isFavorite Boolean  @default(false)
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, emailId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
