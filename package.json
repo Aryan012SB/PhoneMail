@@ -17,8 +17,8 @@
     "prisma:seed": "npx tsx ./prisma/seed.ts",
     "prisma:postgresql": "node ./scripts/prepare-prisma.js postgresql && npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:sqlite": "node ./scripts/prepare-prisma.js sqlite && npx prisma generate --schema=./prisma/schema.prisma",
-    "render:api-build": "node ./scripts/prepare-prisma.js postgresql && npx prisma generate --schema=./prisma/schema.prisma && npm run build:api",
-    "render:api-start": "npx prisma db push --schema=./prisma/schema.prisma && npx tsx ./prisma/seed.ts && node apps/api/dist/index.js",
+    "render:api-build": "node ./scripts/prepare-prisma.js postgresql && npx prisma generate --schema=./prisma/schema.prisma && npx prisma db push --schema=./prisma/schema.prisma --accept-data-loss && npx tsx ./prisma/seed.ts && npm run build:api",
+    "render:api-start": "node apps/api/dist/index.js",
     "test": "npx tsx ./test-suite.ts"
   },
   "devDependencies": {
