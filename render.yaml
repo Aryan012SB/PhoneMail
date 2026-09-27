@@ -19,11 +19,10 @@ services:
           name: phonemail-db
           property: connectionString
 
-  # 2. Web Frontend Static Site (Global CDN - no region required)
+  # 2. Web Frontend Static Site (Static sites are free automatically - no plan property required)
   - type: web
     name: phonemail-web
     runtime: static
-    plan: free
     buildCommand: npm install && npm run build:web
     staticPublishPath: ./apps/web/dist
     routes:
