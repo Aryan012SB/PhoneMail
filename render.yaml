@@ -19,12 +19,11 @@ services:
           name: phonemail-db
           property: connectionString
 
-  # 2. Web Frontend Static Site
+  # 2. Web Frontend Static Site (Global CDN - no region required)
   - type: web
     name: phonemail-web
     runtime: static
     plan: free
-    region: singapore
     buildCommand: npm install && npm run build:web
     staticPublishPath: ./apps/web/dist
     routes:
@@ -36,11 +35,10 @@ services:
         fromService:
           type: web
           name: phonemail-api
-          property: url
-          path: /api
+          property: host
 
 databases:
-  # 3. Render Managed PostgreSQL Database (Ensures all data changes are reflected and persisted)
+  # 3. Render Managed PostgreSQL Database
   - name: phonemail-db
     plan: free
     region: singapore
