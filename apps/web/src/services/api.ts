@@ -1,11 +1,33 @@
-let rawApiUrl = (import.meta.env.VITE_API_URL as string) || '/api';
-if (rawApiUrl && !rawApiUrl.startsWith('http') && !rawApiUrl.startsWith('/')) {
-  rawApiUrl = `https://${rawApiUrl}`;
+export function getApiBaseUrl(): string {
+  let url = (import.meta.env.VITE_API_URL as string) || '';
+
+  if (url && url.trim()) {
+    url = url.trim();
+    if (!url.startsWith('http') && !url.startsWith('/')) {
+      url = `https://${url}`;
+    }
+    if (url.startsWith('http') && !url.endsWith('/api')) {
+      url = `${url.replace(/\/$/, '')}/api`;
+    }
+    return url;
+  }
+
+  // Dynamic runtime fallback based on browser domain
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname;
+
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:5000/api';
+    }
+
+    if (host.includes('onrender.com')) {
+      const apiHost = host.replace('-web.onrender.com', '-api.onrender.com');
+      return `https://${apiHost}/api`;
+    }
+  }
+
+  return '/api';
 }
-if (rawApiUrl.startsWith('http') && !rawApiUrl.endsWith('/api')) {
-  rawApiUrl = `${rawApiUrl.replace(/\/$/, '')}/api`;
-}
-const API_BASE = rawApiUrl;
 
 export function getToken(): string | null {
   return localStorage.getItem('phonemail_token');
@@ -33,18 +55,36 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const primaryUrl = getApiBaseUrl();
 
-  const data = await response.json().catch(() => ({}));
+  try {
+    const response = await fetch(`${primaryUrl}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  if (!response.ok) {
-    throw new Error(data.error || 'API Request failed');
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || `Request failed with status ${response.status}`);
+    }
+
+    return data;
+  } catch (err: any) {
+    // If network error occurred, perform automatic fallback check
+    if (err.name === 'TypeError' || (err.message && err.message.includes('fetch'))) {
+      const fallbackUrl = primaryUrl.includes('localhost:5000') ? '/api' : 'http://localhost:5000/api';
+      if (fallbackUrl !== primaryUrl) {
+        try {
+          const fallbackResp = await fetch(`${fallbackUrl}${endpoint}`, { ...options, headers });
+          const fallbackData = await fallbackResp.json().catch(() => ({}));
+          if (fallbackResp.ok) return fallbackData;
+        } catch (_) {}
+      }
+      throw new Error(`Unable to connect to PhoneMail API service (${primaryUrl}). Please ensure the API backend is running.`);
+    }
+    throw err;
   }
-
-  return data;
 }
 
 export const api = {
