@@ -1,7 +1,18 @@
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const provider = process.argv[2] || 'postgresql';
+let provider = process.argv[2];
+
+if (!provider) {
+  const dbUrl = process.env.DATABASE_URL || '';
+  if (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://')) {
+    provider = 'postgresql';
+  } else {
+    provider = 'sqlite';
+  }
+}
+
 const schemaPath = path.join(__dirname, '../prisma/schema.prisma');
 
 try {
@@ -14,7 +25,7 @@ try {
   }
 
   fs.writeFileSync(schemaPath, schema);
-  console.log(`✅ Prisma schema provider updated to: ${provider}`);
+  console.log(`✅ Prisma schema provider set to: ${provider}`);
 } catch (err) {
   console.error('❌ Error updating Prisma schema provider:', err);
   process.exit(1);
