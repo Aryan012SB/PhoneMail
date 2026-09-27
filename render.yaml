@@ -5,8 +5,8 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install --include=dev && node ./scripts/prepare-prisma.js postgresql && npx prisma generate --schema=./prisma/schema.prisma && npx prisma db push --schema=./prisma/schema.prisma --accept-data-loss && npx tsx ./prisma/seed.ts && npm run build:api
-    startCommand: node apps/api/dist/index.js
+    buildCommand: npm install && npm run render:api-build
+    startCommand: npm run render:api-start
     envVars:
       - key: NODE_ENV
         value: production
@@ -23,7 +23,7 @@ services:
   - type: web
     name: phonemail-web
     runtime: static
-    buildCommand: npm install --include=dev && npm run build:web
+    buildCommand: npm install && npm run build:web
     staticPublishPath: ./apps/web/dist
     routes:
       - type: rewrite

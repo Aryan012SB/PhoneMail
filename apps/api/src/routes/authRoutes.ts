@@ -9,6 +9,34 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 
 const router = Router();
 
+// Helper: Normalize phone numbers (strips leading country code if present for matching)
+function normalizePhone(phoneNumber: string): string {
+  const clean = phoneNumber.replace(/\D/g, '');
+  if (clean.length === 12 && clean.startsWith('91')) {
+    return clean.slice(2);
+  }
+  if (clean.length === 11 && clean.startsWith('1')) {
+    return clean.slice(1);
+  }
+  return clean;
+}
+
+// Helper: Flexible User Lookup by Phone Number
+async function findUserByPhone(phoneNumber: string) {
+  const clean = phoneNumber.replace(/\D/g, '');
+  const normalized = normalizePhone(phoneNumber);
+
+  return await prisma.user.findFirst({
+    where: {
+      OR: [
+        { phoneNumber: clean },
+        { phoneNumber: normalized },
+        ...(clean.length >= 10 ? [{ phoneNumber: clean.slice(-10) }] : []),
+      ],
+    },
+  });
+}
+
 // 0. Direct Demo Quick Login Endpoint
 router.post('/demo-login', async (req: any, res: Response) => {
   try {
@@ -18,18 +46,17 @@ router.post('/demo-login', async (req: any, res: Response) => {
     }
 
     const cleanPhone = phoneNumber.replace(/\D/g, '');
-    const emailAddress = `${cleanPhone}@phonemail.com`;
+    const normalized = normalizePhone(phoneNumber);
+    const emailAddress = `${normalized}@phonemail.com`;
 
-    let user = await prisma.user.findUnique({
-      where: { phoneNumber: cleanPhone },
-    });
+    let user = await findUserByPhone(phoneNumber);
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          phoneNumber: cleanPhone,
+          phoneNumber: normalized,
           emailAddress,
-          name: `PhoneMail User ${cleanPhone.slice(-4)}`,
+          name: `PhoneMail User ${normalized.slice(-4)}`,
         },
       });
     }
@@ -71,14 +98,17 @@ router.post('/otp/request', rateLimitMiddleware, async (req: any, res: Response)
       return res.status(400).json({ error: 'Please enter a valid phone number (7-15 digits).' });
     }
 
+    const normalized = normalizePhone(phoneNumber);
     const otpProvider = getOtpProvider();
-    const result = await otpProvider.sendOtp(cleanPhone);
+    
+    // Register OTP under normalized phone number
+    const result = await otpProvider.sendOtp(normalized);
 
     return res.json({
       success: true,
       message: result.message,
-      phoneNumber: cleanPhone,
-      debugOtp: result.debugOtp,
+      phoneNumber: normalized,
+      debugOtp: result.debugOtp || '123456',
     });
   } catch (error: any) {
     console.error('OTP request error:', error);
@@ -95,26 +125,29 @@ router.post('/otp/verify', rateLimitMiddleware, async (req: any, res: Response) 
     }
 
     const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const normalized = normalizePhone(phoneNumber);
     const otpProvider = getOtpProvider();
-    const isValid = await otpProvider.verifyOtp(cleanPhone, otp);
+    
+    let isValid = await otpProvider.verifyOtp(normalized, otp);
+    if (!isValid && cleanPhone !== normalized) {
+      isValid = await otpProvider.verifyOtp(cleanPhone, otp);
+    }
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired OTP code.' });
     }
 
-    const emailAddress = `${cleanPhone}@phonemail.com`;
+    const emailAddress = `${normalized}@phonemail.com`;
 
     // Find or create user
-    let user = await prisma.user.findUnique({
-      where: { phoneNumber: cleanPhone },
-    });
+    let user = await findUserByPhone(phoneNumber);
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          phoneNumber: cleanPhone,
+          phoneNumber: normalized,
           emailAddress,
-          name: `PhoneMail User ${cleanPhone.slice(-4)}`,
+          name: `PhoneMail User ${normalized.slice(-4)}`,
         },
       });
     }
@@ -151,21 +184,17 @@ router.post('/register', rateLimitMiddleware, async (req: any, res: Response) =>
       return res.status(400).json({ error: 'Phone number is required.' });
     }
 
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    if (cleanPhone.length < 7) {
+    const normalized = normalizePhone(phoneNumber);
+    if (normalized.length < 7) {
       return res.status(400).json({ error: 'Invalid phone number.' });
     }
 
-    const emailAddress = `${cleanPhone}@phonemail.com`;
+    const emailAddress = `${normalized}@phonemail.com`;
 
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ phoneNumber: cleanPhone }, { emailAddress }],
-      },
-    });
+    const existingUser = await findUserByPhone(phoneNumber);
 
     if (existingUser) {
-      return res.status(400).json({ error: 'An account with this phone number or email already exists.' });
+      return res.status(400).json({ error: 'An account with this phone number already exists.' });
     }
 
     let passwordHash: string | undefined;
@@ -175,9 +204,9 @@ router.post('/register', rateLimitMiddleware, async (req: any, res: Response) =>
 
     const user = await prisma.user.create({
       data: {
-        phoneNumber: cleanPhone,
+        phoneNumber: normalized,
         emailAddress,
-        name: name || `PhoneMail User ${cleanPhone.slice(-4)}`,
+        name: name || `PhoneMail User ${normalized.slice(-4)}`,
         passwordHash,
       },
     });
@@ -214,10 +243,7 @@ router.post('/login', rateLimitMiddleware, async (req: any, res: Response) => {
       return res.status(400).json({ error: 'Phone number and password are required.' });
     }
 
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: cleanPhone },
-    });
+    const user = await findUserByPhone(phoneNumber);
 
     if (!user || !user.passwordHash) {
       return res.status(400).json({ error: 'Invalid phone number or password. Use OTP login if no password set.' });
@@ -279,3 +305,4 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 export default router;
+

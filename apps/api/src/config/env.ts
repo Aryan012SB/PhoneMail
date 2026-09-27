@@ -6,9 +6,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 export const config = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  devMode: process.env.DEV_MODE === 'true',
+  devMode: process.env.DEV_MODE !== 'false',
   jwtSecret: process.env.JWT_SECRET || 'phonemail_secure_jwt_secret_key_2026_hackathon',
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://phonemail:phonemailpass@localhost:5432/phonemail?schema=public',
+  databaseUrl: process.env.DATABASE_URL || 'file:./dev.db',
   
   defaultOtpProvider: process.env.DEFAULT_OTP_PROVIDER || 'mock',
   defaultSmsProvider: process.env.DEFAULT_SMS_PROVIDER || 'mock',

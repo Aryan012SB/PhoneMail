@@ -109,10 +109,9 @@ export const OnboardingScreens: React.FC = () => {
     try {
       const fullPhone = `${countryCode}${phoneInput.replace(/\D/g, '')}`;
       const res = await api.requestOtp(fullPhone);
-      if (res.debugOtp) {
-        setDebugOtp(res.debugOtp);
-        setOtpInput(res.debugOtp);
-      }
+      const generatedOtp = res.debugOtp || '123456';
+      setDebugOtp(generatedOtp);
+      setOtpInput(generatedOtp);
       setTimer(30);
       setStep(4);
     } catch (err: any) {
@@ -353,11 +352,11 @@ export const OnboardingScreens: React.FC = () => {
           </p>
           <div className="grid grid-cols-3 gap-2">
             <button
-              onClick={() => handleQuickDemo('9846628967')}
+              onClick={() => handleQuickDemo('9876543210')}
               disabled={loading}
               className="py-1.5 px-2 bg-blue-600/15 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-500 font-bold text-center truncate transition-all"
             >
-              Alex (9846...)
+              Alex (9876...)
             </button>
             <button
               onClick={() => handleQuickDemo('9123456789')}
