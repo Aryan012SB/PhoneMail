@@ -17,7 +17,7 @@ export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenS
   const {
     folder, setFolder, filterChip, setFilterChip, searchQuery, setSearchQuery,
     conversations, selectedConversationId, setSelectedConversationId,
-    selectedConversationDetail, openCompose, toggleEmailState, refreshAll
+    selectedConversationDetail, setSelectedConversationDetail, openCompose, toggleEmailState, refreshAll
   } = useEmail();
 
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
@@ -32,8 +32,9 @@ export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenS
       const latest = selectedConversationDetail.emails[selectedConversationDetail.emails.length - 1];
       await api.replyEmail(latest.id, chatInput);
       setChatInput('');
-      await api.getConversationDetail(selectedConversationDetail.id);
-      refreshAll();
+      const updatedDetail = await api.getConversationDetail(selectedConversationDetail.id);
+      setSelectedConversationDetail(updatedDetail);
+      await refreshAll(true);
     } catch (err) {
       console.error('Quick send error:', err);
     } finally {

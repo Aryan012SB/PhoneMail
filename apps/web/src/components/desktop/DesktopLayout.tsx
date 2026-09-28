@@ -29,9 +29,12 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
     if (!selectedEmail || !replyText.trim()) return;
     setReplying(true);
     try {
-      await api.replyEmail(selectedEmail.id, replyText);
+      const res = await api.replyEmail(selectedEmail.id, replyText);
       setReplyText('');
-      await refreshAll();
+      if (res.email?.id) {
+        setSelectedEmailId(res.email.id);
+      }
+      await refreshAll(true);
     } catch (err) {
       console.error('Reply error:', err);
     } finally {

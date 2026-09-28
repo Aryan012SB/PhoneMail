@@ -20,6 +20,7 @@ interface EmailContextType {
   selectedConversationId: string | null;
   setSelectedConversationId: (id: string | null) => void;
   selectedConversationDetail: any | null;
+  setSelectedConversationDetail: (detail: any) => void;
   
   selectedEmailId: string | null;
   setSelectedEmailId: (id: string | null) => void;
@@ -29,7 +30,7 @@ interface EmailContextType {
   composePreset: { to?: string; subject?: string; threadId?: string } | null;
   openCompose: (preset?: { to?: string; subject?: string; threadId?: string }) => void;
   
-  refreshAll: () => Promise<void>;
+  refreshAll: (isSilent?: boolean) => Promise<void>;
   toggleEmailState: (id: string, updates: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean }) => Promise<void>;
   deleteEmail: (id: string) => Promise<void>;
 }
@@ -55,26 +56,58 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [composeOpen, setComposeOpen] = useState<boolean>(false);
   const [composePreset, setComposePreset] = useState<{ to?: string; subject?: string; threadId?: string } | null>(null);
 
-  const refreshAll = useCallback(async () => {
+  const folderRef = React.useRef(folder);
+  const filterChipRef = React.useRef(filterChip);
+  const searchQueryRef = React.useRef(searchQuery);
+  const selectedConversationIdRef = React.useRef(selectedConversationId);
+
+  useEffect(() => { folderRef.current = folder; }, [folder]);
+  useEffect(() => { filterChipRef.current = filterChip; }, [filterChip]);
+  useEffect(() => { searchQueryRef.current = searchQuery; }, [searchQuery]);
+  useEffect(() => { selectedConversationIdRef.current = selectedConversationId; }, [selectedConversationId]);
+
+  const refreshAll = useCallback(async (isSilent: boolean = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     try {
-      const [convsData, emailsData] = await Promise.all([
-        api.getConversations(folder, filterChip, searchQuery),
-        api.getEmails(folder, filterChip, searchQuery),
-      ]);
+      const activeConvId = selectedConversationIdRef.current;
+      const currentFolder = folderRef.current;
+      const currentChip = filterChipRef.current;
+      const currentSearch = searchQueryRef.current;
+
+      const promises: Promise<any>[] = [
+        api.getConversations(currentFolder, currentChip, currentSearch),
+        api.getEmails(currentFolder, currentChip, currentSearch),
+      ];
+      if (activeConvId) {
+        promises.push(api.getConversationDetail(activeConvId));
+      }
+
+      const [convsData, emailsData, detailData] = await Promise.all(promises);
       setConversations(convsData);
       setEmails(emailsData);
+      if (activeConvId && detailData) {
+        setSelectedConversationDetail(detailData);
+      }
     } catch (err) {
       console.error('Failed to load email data:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  }, [user, folder, filterChip, searchQuery]);
+  }, [user]);
 
   useEffect(() => {
-    refreshAll();
-  }, [refreshAll]);
+    refreshAll(false);
+  }, [refreshAll, folder, filterChip, searchQuery]);
+
+  // Automatic background refresh every 2 seconds for live auto-updating messages
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      refreshAll(true);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [user, refreshAll]);
 
   // Load conversation detail when selected
   useEffect(() => {
@@ -85,10 +118,9 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     api.getConversationDetail(selectedConversationId)
       .then(detail => {
         setSelectedConversationDetail(detail);
-        refreshAll();
       })
       .catch(err => console.error('Error fetching conversation detail:', err));
-  }, [selectedConversationId, refreshAll]);
+  }, [selectedConversationId]);
 
   const openCompose = (preset?: { to?: string; subject?: string; threadId?: string }) => {
     setComposePreset(preset || null);
@@ -135,6 +167,7 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         selectedConversationId,
         setSelectedConversationId,
         selectedConversationDetail,
+        setSelectedConversationDetail,
         selectedEmailId,
         setSelectedEmailId,
         composeOpen,

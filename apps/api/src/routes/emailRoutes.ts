@@ -190,6 +190,7 @@ router.post('/send', authMiddleware, upload.array('attachments'), async (req: Au
     return res.json({
       success: true,
       emailId: email.id,
+      threadId: conversationId || null,
       message: isDraft ? 'Draft saved successfully.' : 'Email sent successfully!',
     });
   } catch (error: any) {

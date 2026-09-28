@@ -110,7 +110,7 @@ export const Header: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
         </button>
 
         <button
-          onClick={refreshAll}
+          onClick={() => refreshAll()}
           disabled={loading}
           className={`p-2 rounded-xl border transition-all ${
             themeMode === 'dark'

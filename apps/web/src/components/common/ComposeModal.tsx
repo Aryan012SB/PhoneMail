@@ -5,7 +5,10 @@ import { api } from '../../services/api';
 import { X, Send, Paperclip, Save, Lock, Search, UserCheck } from 'lucide-react';
 
 export const ComposeModal: React.FC = () => {
-  const { composeOpen, setComposeOpen, composePreset, refreshAll } = useEmail();
+  const {
+    composeOpen, setComposeOpen, composePreset, refreshAll,
+    setSelectedConversationId, setSelectedConversationDetail, setSelectedEmailId
+  } = useEmail();
   const { themeMode } = useTheme();
   const isDark = themeMode === 'dark';
 
@@ -82,9 +85,25 @@ export const ComposeModal: React.FC = () => {
         formData.append('attachments', file);
       });
 
-      await api.sendEmail(formData);
+      const res = await api.sendEmail(formData);
       setComposeOpen(false);
-      await refreshAll();
+      setToInput('');
+      setCcInput('');
+      setSubjectInput('');
+      setBodyInput('');
+      setAttachments([]);
+
+      if (res.threadId) {
+        setSelectedConversationId(res.threadId);
+        try {
+          const detail = await api.getConversationDetail(res.threadId);
+          setSelectedConversationDetail(detail);
+        } catch (_) {}
+      } else if (res.emailId) {
+        setSelectedEmailId(res.emailId);
+      }
+
+      await refreshAll(true);
     } catch (err: any) {
       setError(err.message || 'Failed to process email');
     } finally {
