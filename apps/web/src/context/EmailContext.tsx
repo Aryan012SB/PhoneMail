@@ -42,7 +42,7 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [folder, setFolder] = useState<string>('inbox');
   const [filterChip, setFilterChip] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'auto' | 'mobile' | 'desktop'>('desktop');
+  const [viewMode, setViewMode] = useState<'auto' | 'mobile' | 'desktop'>('auto');
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
