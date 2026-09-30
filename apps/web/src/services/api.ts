@@ -144,7 +144,8 @@ export const api = {
   updateEmailState: (id: string, state: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean }) =>
     fetchApi(`/emails/${id}/state`, { method: 'PATCH', body: JSON.stringify(state) }),
 
-  deleteEmail: (id: string) => fetchApi(`/emails/${id}`, { method: 'DELETE' }),
+  deleteEmail: (id: string, permanent: boolean = false) =>
+    fetchApi(`/emails/${id}${permanent ? '?permanent=true' : ''}`, { method: 'DELETE' }),
 
   // IVR Simulation
   simulateIvrCall: (callerPhone: string, digits = '1') =>

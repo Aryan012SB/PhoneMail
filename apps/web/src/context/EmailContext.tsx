@@ -32,7 +32,7 @@ interface EmailContextType {
   
   refreshAll: (isSilent?: boolean) => Promise<void>;
   toggleEmailState: (id: string, updates: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean }) => Promise<void>;
-  deleteEmail: (id: string) => Promise<void>;
+  deleteEmail: (id: string, permanent?: boolean) => Promise<void>;
 }
 
 const EmailContext = createContext<EmailContextType | null>(null);
@@ -140,9 +140,9 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteEmailItem = async (id: string) => {
+  const deleteEmailItem = async (id: string, permanent: boolean = false) => {
     try {
-      await api.deleteEmail(id);
+      await api.deleteEmail(id, permanent);
       if (selectedEmailId === id) setSelectedEmailId(null);
       await refreshAll();
     } catch (err) {

@@ -6,7 +6,7 @@ import { api } from '../../services/api';
 import {
   Inbox, Send, FileText, AlertOctagon, Trash2, Star, Plus, Paperclip,
   Search, RefreshCw, Lock, ArrowLeft, Mail, ChevronRight, User as UserIcon,
-  Tag, Shield, ExternalLink, LogOut, Menu, X, MoreVertical
+  Tag, Shield, ExternalLink, LogOut, Menu, X, MoreVertical, RotateCcw
 } from 'lucide-react';
 import { Email } from '../../types';
 
@@ -27,6 +27,7 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
   
   const [menuEmailId, setMenuEmailId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ emailId: string; subject?: string } | null>(null);
+  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<Email | null>(null);
 
   const selectedEmail = emails.find(e => e.id === selectedEmailId);
 
@@ -43,6 +44,20 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
       }, 5000);
     } catch (err) {
       console.error('Failed to move email to trash:', err);
+    }
+  };
+
+  const handleRecoverEmail = async (email: Email) => {
+    setMenuEmailId(null);
+    try {
+      await toggleEmailState(email.id, { isTrash: false });
+      if (selectedEmailId === email.id) {
+        setSelectedEmailId(null);
+      }
+      setToast({ emailId: email.id, subject: 'Restored to Inbox' });
+      setTimeout(() => setToast(null), 4000);
+    } catch (err) {
+      console.error('Failed to restore email from trash:', err);
     }
   };
 
@@ -325,58 +340,87 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
                     {isMenuOpen && (
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className={`absolute right-0 top-7 z-50 w-44 rounded-xl border shadow-2xl p-1 text-xs space-y-0.5 transition-colors box-border ${
+                        className={`absolute right-0 top-7 z-50 w-48 rounded-xl border shadow-2xl p-1 text-xs space-y-0.5 transition-colors box-border ${
                           isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
                         }`}
                       >
-                        <button
-                          onClick={() => {
-                            toggleEmailState(email.id, { isRead: !email.isRead });
-                            setMenuEmailId(null);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
-                            isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
-                          }`}
-                        >
-                          <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                          <span className="truncate">{email.isRead ? 'Mark as Unread' : 'Mark as Read'}</span>
-                        </button>
+                        {folder === 'trash' ? (
+                          <>
+                            <button
+                              onClick={() => handleRecoverEmail(email)}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                                isDark ? 'hover:bg-slate-700/70 text-emerald-400 font-medium' : 'hover:bg-emerald-50 text-emerald-600 font-semibold'
+                              }`}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">Recover from Trash</span>
+                            </button>
 
-                        <button
-                          onClick={() => {
-                            toggleEmailState(email.id, { isFavorite: !email.isFavorite });
-                            setMenuEmailId(null);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
-                            isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
-                          }`}
-                        >
-                          <Star className={`w-3.5 h-3.5 shrink-0 ${email.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-amber-400'}`} />
-                          <span className="truncate">{email.isFavorite ? 'Unstar Email' : 'Star Email'}</span>
-                        </button>
+                            <button
+                              onClick={() => {
+                                setMenuEmailId(null);
+                                setConfirmDeleteEmail(email);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left text-rose-500 font-semibold ${
+                                isDark ? 'hover:bg-rose-500/20' : 'hover:bg-rose-50'
+                              }`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">Delete permanently</span>
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                toggleEmailState(email.id, { isRead: !email.isRead });
+                                setMenuEmailId(null);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                                isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                              <span className="truncate">{email.isRead ? 'Mark as Unread' : 'Mark as Read'}</span>
+                            </button>
 
-                        <button
-                          onClick={() => handleTrashEmail(email)}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left text-rose-500 font-semibold ${
-                            isDark ? 'hover:bg-rose-500/20' : 'hover:bg-rose-50'
-                          }`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate">Move to Trash</span>
-                        </button>
+                            <button
+                              onClick={() => {
+                                toggleEmailState(email.id, { isFavorite: !email.isFavorite });
+                                setMenuEmailId(null);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                                isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <Star className={`w-3.5 h-3.5 shrink-0 ${email.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-amber-400'}`} />
+                              <span className="truncate">{email.isFavorite ? 'Unstar Email' : 'Star Email'}</span>
+                            </button>
 
-                        <button
-                          onClick={() => {
-                            setMenuEmailId(null);
-                            setSelectedEmailId(email.id);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
-                            isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
-                          }`}
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                          <span className="truncate">More Details</span>
-                        </button>
+                            <button
+                              onClick={() => handleTrashEmail(email)}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left text-rose-500 font-semibold ${
+                                isDark ? 'hover:bg-rose-500/20' : 'hover:bg-rose-50'
+                              }`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">Move to Trash</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setMenuEmailId(null);
+                                setSelectedEmailId(email.id);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                                isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                              <span className="truncate">More Details</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -422,9 +466,15 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
                 <AlertOctagon className="w-4 h-4" />
               </button>
               <button
-                onClick={() => deleteEmail(selectedEmail.id)}
+                onClick={() => {
+                  if (folder === 'trash') {
+                    setConfirmDeleteEmail(selectedEmail);
+                  } else {
+                    handleTrashEmail(selectedEmail);
+                  }
+                }}
                 className={`p-1.5 rounded-lg hover:text-rose-500 ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}
-                title="Delete Email"
+                title={folder === 'trash' ? 'Delete Permanently' : 'Move to Trash'}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -569,6 +619,59 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* --- PERMANENT DELETE CONFIRMATION MODAL --- */}
+      {confirmDeleteEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl space-y-4 box-border animate-in fade-in zoom-in-95 duration-150 ${
+            isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center gap-3 text-rose-500">
+              <div className={`p-3 rounded-full ${isDark ? 'bg-rose-500/20' : 'bg-rose-100'}`}>
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold">Delete permanently?</h3>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className={`p-3 rounded-xl border text-xs space-y-1 ${
+              isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <p className="font-semibold truncate">Subject: {confirmDeleteEmail.subject}</p>
+              <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                From: {confirmDeleteEmail.sender?.name || confirmDeleteEmail.sender?.emailAddress}
+              </p>
+            </div>
+
+            <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              Are you sure you want to permanently delete this email? It will be completely removed from the system and database and cannot be recovered afterward.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmDeleteEmail(null)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const targetId = confirmDeleteEmail.id;
+                  setConfirmDeleteEmail(null);
+                  await deleteEmail(targetId, true);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md transition-all"
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

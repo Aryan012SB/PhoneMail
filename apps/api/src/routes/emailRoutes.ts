@@ -558,23 +558,41 @@ router.patch('/:id/state', authMiddleware, async (req: AuthRequest, res: Respons
   }
 });
 
-// 7. Delete Email
+// 7. Delete Email (Move to Trash OR Permanent Delete)
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
 
-    // Check if in trash, if yes, permanently delete or mark as trash
+    // Check existing folder state for this user & email
     const existingState = await prisma.userEmailFolder.findUnique({
       where: { userId_emailId: { userId, emailId: id } },
     });
 
-    if (existingState && existingState.isTrash) {
-      await prisma.userEmailFolder.delete({
-        where: { userId_emailId: { userId, emailId: id } },
+    const isAlreadyInTrash = existingState && existingState.isTrash;
+    const isExplicitPermanent = req.query.permanent === 'true';
+
+    if (isAlreadyInTrash || isExplicitPermanent) {
+      // 1. Remove user's folder state association
+      await prisma.userEmailFolder.deleteMany({
+        where: { userId, emailId: id },
       });
-      return res.json({ success: true, message: 'Email permanently removed from your mailbox.' });
+
+      // 2. Check if any other users still have a reference to this email
+      const remainingStates = await prisma.userEmailFolder.count({
+        where: { emailId: id },
+      });
+
+      // 3. If no other users reference this email, purge attachments, recipients, and email record completely
+      if (remainingStates === 0) {
+        await prisma.attachment.deleteMany({ where: { emailId: id } });
+        await prisma.recipient.deleteMany({ where: { emailId: id } });
+        await prisma.email.delete({ where: { id } }).catch(() => {});
+      }
+
+      return res.json({ success: true, message: 'Email permanently deleted from system.' });
     } else {
+      // Move to Trash
       await prisma.userEmailFolder.upsert({
         where: { userId_emailId: { userId, emailId: id } },
         create: { userId, emailId: id, isTrash: true },
@@ -583,6 +601,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
       return res.json({ success: true, message: 'Email moved to Trash.' });
     }
   } catch (error) {
+    console.error('Delete email error:', error);
     return res.status(500).json({ error: 'Failed to delete email.' });
   }
 });
