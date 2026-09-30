@@ -118,11 +118,13 @@ model UserEmailFolder {
   id         String   @id @default(uuid())
   userId     String
   emailId    String
-  isSpam     Boolean  @default(false)
-  isTrash    Boolean  @default(false)
-  isFavorite Boolean  @default(false)
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  isSpam      Boolean  @default(false)
+  isTrash     Boolean  @default(false)
+  isFavorite  Boolean  @default(false)
+  isRead      Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  isImportant Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)

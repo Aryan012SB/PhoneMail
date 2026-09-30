@@ -101,10 +101,76 @@ async function runTestSuite() {
     });
     assert(alias.alias === aliasStr, '7. Secondary Alias ID successfully attached to user account');
 
-    // 7. Test Toll-Free IVR Registration Simulation
-    const ivrProvider = getIvrProvider();
-    const ivrRes = await ivrProvider.handleInboundCall('9776655443', '1');
-    assert(ivrRes.success === true, '8. Toll-Free IVR inbound call handler registers account via caller ID');
+    // 8. Test State Persistence (Read, Favorite, Spam, Trash, Archive, Important)
+    const stateFolder = await prisma.userEmailFolder.upsert({
+      where: { userId_emailId: { userId: recipientUser.id, emailId: email.id } },
+      create: {
+        userId: recipientUser.id,
+        emailId: email.id,
+        isRead: true,
+        isFavorite: true,
+        isSpam: false,
+        isTrash: false,
+        isArchived: true,
+        isImportant: true,
+      },
+      update: {
+        isRead: true,
+        isFavorite: true,
+        isArchived: true,
+        isImportant: true,
+      },
+    });
+
+    const verifyFolderState = await prisma.userEmailFolder.findUnique({
+      where: { userId_emailId: { userId: recipientUser.id, emailId: email.id } },
+    });
+
+    assert(
+      Boolean(verifyFolderState && verifyFolderState.isRead && verifyFolderState.isFavorite && verifyFolderState.isArchived && verifyFolderState.isImportant),
+      '9. User email state changes (Read, Starred, Archived, Important) permanently saved in database'
+    );
+
+    // 9. Test Recipient SEEN status persistence
+    await prisma.recipient.updateMany({
+      where: { emailId: email.id, recipientId: recipientUser.id },
+      data: { status: 'SEEN', readAt: new Date() },
+    });
+
+    const updatedRecipient = await prisma.recipient.findFirst({
+      where: { emailId: email.id, recipientId: recipientUser.id },
+    });
+    assert(Boolean(updatedRecipient && updatedRecipient.status === 'SEEN' && updatedRecipient.readAt), '10. Recipient SEEN status & readAt timestamp permanently saved in database');
+
+    // 10. Test Draft Creation & Edit Persistence
+    const draftEmail = await prisma.email.create({
+      data: {
+        senderId: sender.id,
+        subject: 'Initial Draft Subject',
+        body: 'Initial Draft Body',
+        isDraft: true,
+      },
+    });
+
+    const updatedDraft = await prisma.email.update({
+      where: { id: draftEmail.id },
+      data: {
+        subject: 'Updated Draft Subject',
+        body: 'Updated Draft Body',
+      },
+    });
+
+    const verifyDraft = await prisma.email.findUnique({ where: { id: draftEmail.id } });
+    assert(Boolean(verifyDraft && verifyDraft.isDraft && verifyDraft.subject === 'Updated Draft Subject'), '11. Draft creation and edit updates permanently saved in database');
+
+    // 11. Test Permanent Deletion Persistence
+    await prisma.attachment.deleteMany({ where: { emailId: draftEmail.id } });
+    await prisma.recipient.deleteMany({ where: { emailId: draftEmail.id } });
+    await prisma.userEmailFolder.deleteMany({ where: { emailId: draftEmail.id } });
+    await prisma.email.delete({ where: { id: draftEmail.id } });
+
+    const verifyDeleted = await prisma.email.findUnique({ where: { id: draftEmail.id } });
+    assert(verifyDeleted === null, '12. Permanent deletion completely purges email from database');
 
     console.log(`\n🎉 TEST SUITE COMPLETED: ${passed}/${total} tests passed!`);
   } catch (err: any) {

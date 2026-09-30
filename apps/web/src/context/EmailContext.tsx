@@ -27,11 +27,11 @@ interface EmailContextType {
   
   composeOpen: boolean;
   setComposeOpen: (open: boolean) => void;
-  composePreset: { to?: string; subject?: string; threadId?: string } | null;
-  openCompose: (preset?: { to?: string; subject?: string; threadId?: string }) => void;
+  composePreset: { to?: string; subject?: string; threadId?: string; draftId?: string; body?: string } | null;
+  openCompose: (preset?: { to?: string; subject?: string; threadId?: string; draftId?: string; body?: string }) => void;
   
   refreshAll: (isSilent?: boolean) => Promise<void>;
-  toggleEmailState: (id: string, updates: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean }) => Promise<void>;
+  toggleEmailState: (id: string, updates: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean; isArchived?: boolean; isImportant?: boolean }) => Promise<void>;
   deleteEmail: (id: string, permanent?: boolean) => Promise<void>;
 }
 
@@ -54,7 +54,7 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
 
   const [composeOpen, setComposeOpen] = useState<boolean>(false);
-  const [composePreset, setComposePreset] = useState<{ to?: string; subject?: string; threadId?: string } | null>(null);
+  const [composePreset, setComposePreset] = useState<{ to?: string; subject?: string; threadId?: string; draftId?: string; body?: string } | null>(null);
 
   const folderRef = React.useRef(folder);
   const filterChipRef = React.useRef(filterChip);
@@ -122,12 +122,12 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       .catch(err => console.error('Error fetching conversation detail:', err));
   }, [selectedConversationId]);
 
-  const openCompose = (preset?: { to?: string; subject?: string; threadId?: string }) => {
+  const openCompose = (preset?: { to?: string; subject?: string; threadId?: string; draftId?: string; body?: string }) => {
     setComposePreset(preset || null);
     setComposeOpen(true);
   };
 
-  const toggleEmailState = async (id: string, updates: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean }) => {
+  const toggleEmailState = async (id: string, updates: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean; isArchived?: boolean; isImportant?: boolean }) => {
     try {
       await api.updateEmailState(id, updates);
       await refreshAll();

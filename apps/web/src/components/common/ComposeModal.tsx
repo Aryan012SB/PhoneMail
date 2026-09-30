@@ -27,6 +27,7 @@ export const ComposeModal: React.FC = () => {
     if (composePreset) {
       if (composePreset.to) setToInput(composePreset.to);
       if (composePreset.subject) setSubjectInput(composePreset.subject);
+      if (composePreset.body) setBodyInput(composePreset.body);
     } else {
       setToInput('');
       setCcInput('');
@@ -80,6 +81,7 @@ export const ComposeModal: React.FC = () => {
       formData.append('body', bodyInput);
       if (isDraft) formData.append('isDraft', 'true');
       if (composePreset?.threadId) formData.append('threadId', composePreset.threadId);
+      if (composePreset?.draftId) formData.append('draftId', composePreset.draftId);
 
       attachments.forEach((file) => {
         formData.append('attachments', file);

@@ -141,7 +141,7 @@ export const api = {
   replyEmail: (id: string, body: string) =>
     fetchApi(`/emails/${id}/reply`, { method: 'POST', body: JSON.stringify({ body }) }),
 
-  updateEmailState: (id: string, state: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean }) =>
+  updateEmailState: (id: string, state: { isRead?: boolean; isFavorite?: boolean; isSpam?: boolean; isTrash?: boolean; isArchived?: boolean; isImportant?: boolean }) =>
     fetchApi(`/emails/${id}/state`, { method: 'PATCH', body: JSON.stringify(state) }),
 
   deleteEmail: (id: string, permanent: boolean = false) =>

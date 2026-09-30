@@ -78,7 +78,7 @@ router.post('/send', authMiddleware, upload.array('attachments'), async (req: Au
     const sender = await prisma.user.findUnique({ where: { id: senderId } });
     if (!sender) return res.status(404).json({ error: 'Sender user not found.' });
 
-    const { to, cc, subject, body, isDraft, threadId, parentEmailId } = req.body;
+    const { to, cc, subject, body, isDraft, threadId, parentEmailId, draftId } = req.body;
 
     if (!isDraft && (!to || !to.trim())) {
       return res.status(400).json({ error: 'At least one recipient (To) is required.' });
@@ -114,17 +114,37 @@ router.post('/send', authMiddleware, upload.array('attachments'), async (req: Au
       conversationId = conv.id;
     }
 
-    // Create Email
-    const email = await prisma.email.create({
-      data: {
-        senderId,
-        subject: subject || '(No Subject)',
-        body: body || '',
-        threadId: conversationId || null,
-        parentEmailId: parentEmailId || null,
-        isDraft: isDraft === 'true' || isDraft === true,
-      },
-    });
+    let email: any;
+    if (draftId) {
+      const existingDraft = await prisma.email.findFirst({
+        where: { id: draftId, senderId },
+      });
+      if (existingDraft) {
+        email = await prisma.email.update({
+          where: { id: existingDraft.id },
+          data: {
+            subject: subject || '(No Subject)',
+            body: body || '',
+            threadId: conversationId || existingDraft.threadId || null,
+            parentEmailId: parentEmailId || existingDraft.parentEmailId || null,
+            isDraft: isDraft === 'true' || isDraft === true,
+          },
+        });
+      }
+    }
+
+    if (!email) {
+      email = await prisma.email.create({
+        data: {
+          senderId,
+          subject: subject || '(No Subject)',
+          body: body || '',
+          threadId: conversationId || null,
+          parentEmailId: parentEmailId || null,
+          isDraft: isDraft === 'true' || isDraft === true,
+        },
+      });
+    }
 
     // Handle Attachments
     const files = (req.files as Express.Multer.File[]) || [];
@@ -142,6 +162,9 @@ router.post('/send', authMiddleware, upload.array('attachments'), async (req: Au
 
     // Handle Recipients & Internal Delivery
     if (!isDraft) {
+      // Clear any prior draft recipients if converting draft
+      await prisma.recipient.deleteMany({ where: { emailId: email.id } });
+
       const recipientData = [
         ...toAddresses.map(addr => ({
           emailId: email.id,
@@ -180,7 +203,7 @@ router.post('/send', authMiddleware, upload.array('attachments'), async (req: Au
             update: {},
           });
 
-          // Trigger SMS Notification per requirement 12!
+          // Trigger SMS Notification
           const smsText = `You have received an email from ${sender.name} (${sender.emailAddress}). Subject: ${email.subject}`;
           await smsProvider.sendSms(recUser.phoneNumber, smsText);
         }
@@ -333,7 +356,7 @@ router.get('/conversations', authMiddleware, async (req: AuthRequest, res: Respo
       .filter(conv => conv.emails.length > 0)
       .map(conv => {
         const latestEmail = conv.emails[0];
-        const userState = latestEmail.userStates[0] || { isRead: false, isSpam: false, isTrash: false, isFavorite: false };
+        const userState = latestEmail.userStates[0] || { isRead: false, isSpam: false, isTrash: false, isFavorite: false, isArchived: false, isImportant: false };
         const otherMembers = conv.members.filter(m => m.userId !== userId).map(m => m.user);
 
         return {
@@ -353,6 +376,8 @@ router.get('/conversations', authMiddleware, async (req: AuthRequest, res: Respo
           isFavorite: userState.isFavorite,
           isSpam: userState.isSpam,
           isTrash: userState.isTrash,
+          isArchived: userState.isArchived || false,
+          isImportant: userState.isImportant || false,
         };
       })
       .filter(item => {
@@ -360,7 +385,9 @@ router.get('/conversations', authMiddleware, async (req: AuthRequest, res: Respo
         if (folder === 'spam' && !item.isSpam) return false;
         if (folder === 'trash' && !item.isTrash) return false;
         if (folder === 'favorites' && !item.isFavorite) return false;
-        if (folder === 'inbox' && (item.isSpam || item.isTrash)) return false;
+        if (folder === 'archive' && (!item.isArchived || item.isTrash)) return false;
+        if (folder === 'important' && (!item.isImportant || item.isTrash)) return false;
+        if (folder === 'inbox' && (item.isSpam || item.isTrash || item.isArchived)) return false;
 
         // Filter chips check
         if (filter === 'unread' && item.isRead) return false;
@@ -415,13 +442,17 @@ router.get('/conversations/:id', authMiddleware, async (req: AuthRequest, res: R
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
-    // Mark emails in this conversation as READ for current user
+    // Mark emails in this conversation as READ & SEEN for current user
     const emailIds = conversation.emails.map(e => e.id);
     for (const emailId of emailIds) {
       await prisma.userEmailFolder.upsert({
         where: { userId_emailId: { userId, emailId } },
         create: { userId, emailId, isRead: true },
         update: { isRead: true },
+      });
+      await prisma.recipient.updateMany({
+        where: { emailId, recipientId: userId },
+        data: { status: 'SEEN', readAt: new Date() },
       });
     }
 
@@ -471,7 +502,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         },
       });
     } else {
-      // Inbox, Favorites, Spam, Trash
+      // Inbox, Favorites, Spam, Trash, Archive, Important
       emails = await prisma.email.findMany({
         where: {
           OR: [
@@ -493,21 +524,25 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const formattedEmails = emails
       .map(email => {
-        const state = email.userStates && email.userStates[0] ? email.userStates[0] : { isRead: false, isSpam: false, isTrash: false, isFavorite: false };
+        const state = email.userStates && email.userStates[0] ? email.userStates[0] : { isRead: false, isSpam: false, isTrash: false, isFavorite: false, isArchived: false, isImportant: false };
         return {
           ...email,
           isRead: state.isRead,
           isSpam: state.isSpam,
           isTrash: state.isTrash,
           isFavorite: state.isFavorite,
+          isArchived: state.isArchived || false,
+          isImportant: state.isImportant || false,
         };
       })
       .filter(email => {
         // Folder filtering
-        if (folder === 'inbox' && (email.isSpam || email.isTrash)) return false;
+        if (folder === 'inbox' && (email.isSpam || email.isTrash || email.isArchived)) return false;
         if (folder === 'spam' && !email.isSpam) return false;
         if (folder === 'trash' && !email.isTrash) return false;
         if (folder === 'favorites' && !email.isFavorite) return false;
+        if (folder === 'archive' && (!email.isArchived || email.isTrash)) return false;
+        if (folder === 'important' && (!email.isImportant || email.isTrash)) return false;
 
         // Filter chip
         if (filter === 'unread' && email.isRead) return false;
@@ -532,24 +567,33 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 6. Toggle Email States (Read/Unread, Favorite, Spam, Trash)
+// 6. Toggle Email States (Read/Unread, Favorite, Spam, Trash, Archive, Important)
 router.patch('/:id/state', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
-    const { isRead, isFavorite, isSpam, isTrash } = req.body;
+    const { isRead, isFavorite, isSpam, isTrash, isArchived, isImportant } = req.body;
 
     const dataToUpdate: any = {};
     if (isRead !== undefined) dataToUpdate.isRead = isRead;
     if (isFavorite !== undefined) dataToUpdate.isFavorite = isFavorite;
     if (isSpam !== undefined) dataToUpdate.isSpam = isSpam;
     if (isTrash !== undefined) dataToUpdate.isTrash = isTrash;
+    if (isArchived !== undefined) dataToUpdate.isArchived = isArchived;
+    if (isImportant !== undefined) dataToUpdate.isImportant = isImportant;
 
     const state = await prisma.userEmailFolder.upsert({
       where: { userId_emailId: { userId, emailId: id } },
       create: { userId, emailId: id, ...dataToUpdate },
       update: dataToUpdate,
     });
+
+    if (isRead === true) {
+      await prisma.recipient.updateMany({
+        where: { emailId: id, recipientId: userId },
+        data: { status: 'SEEN', readAt: new Date() },
+      });
+    }
 
     return res.json({ success: true, state });
   } catch (error: any) {

@@ -280,7 +280,18 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
               return (
                 <div
                   key={email.id}
-                  onClick={() => setSelectedEmailId(email.id)}
+                  onClick={() => {
+                    if (email.isDraft) {
+                      openCompose({
+                        draftId: email.id,
+                        to: email.recipients?.map(r => r.recipientEmail).join(', '),
+                        subject: email.subject,
+                        body: email.body,
+                      });
+                    } else {
+                      setSelectedEmailId(email.id);
+                    }
+                  }}
                   className={`p-3 flex items-start gap-2.5 cursor-pointer transition-all w-full min-w-0 box-border relative ${
                     isDark ? 'hover:bg-slate-800/70' : 'hover:bg-slate-50'
                   } ${

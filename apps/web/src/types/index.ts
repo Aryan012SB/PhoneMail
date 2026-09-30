@@ -52,6 +52,8 @@ export interface Email {
   isSpam?: boolean;
   isTrash?: boolean;
   isFavorite?: boolean;
+  isArchived?: boolean;
+  isImportant?: boolean;
 }
 
 export interface Conversation {
@@ -71,4 +73,6 @@ export interface Conversation {
   isFavorite: boolean;
   isSpam: boolean;
   isTrash: boolean;
+  isArchived?: boolean;
+  isImportant?: boolean;
 }
