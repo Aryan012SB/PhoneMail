@@ -31,15 +31,16 @@ export const Header: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
           themeMode === 'dark' ? 'bg-slate-800 border-slate-700/60' : 'bg-slate-100 border-slate-200'
         }`}>
           <button
-            onClick={() => setViewMode('auto')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-              viewMode === 'auto'
+            onClick={() => setViewMode('desktop')}
+            className={`px-2.5 py-1 rounded-lg font-medium flex items-center gap-1 transition-all ${
+              viewMode === 'desktop'
                 ? 'bg-blue-600 text-white font-bold shadow'
                 : themeMode === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
-            title="Auto detect layout based on screen size"
+            title="Desktop Site View Mode"
           >
-            Auto
+            <Monitor className="w-3.5 h-3.5" />
+            <span className="inline">Desktop Site</span>
           </button>
           <button
             onClick={() => setViewMode('mobile')}
@@ -48,22 +49,21 @@ export const Header: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
                 ? 'bg-blue-600 text-white font-bold shadow'
                 : themeMode === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
-            title="Force WhatsApp-inspired Mobile View"
+            title="WhatsApp-inspired Mobile View Mode"
           >
             <Smartphone className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Mobile</span>
+            <span className="hidden sm:inline">Mobile</span>
           </button>
           <button
-            onClick={() => setViewMode('desktop')}
-            className={`px-2.5 py-1 rounded-lg font-medium flex items-center gap-1 transition-all ${
-              viewMode === 'desktop'
+            onClick={() => setViewMode('auto')}
+            className={`px-2 py-1 rounded-lg font-medium transition-all ${
+              viewMode === 'auto'
                 ? 'bg-blue-600 text-white font-bold shadow'
                 : themeMode === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
-            title="Force Gmail-inspired Desktop View"
+            title="Auto detect layout based on screen size"
           >
-            <Monitor className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Desktop</span>
+            Auto
           </button>
         </div>
       </div>
@@ -95,7 +95,7 @@ export const Header: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
       </div>
 
       {/* Action Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {/* Dark / Light Mode Toggle Button */}
         <button
           onClick={toggleTheme}
@@ -139,6 +139,7 @@ export const Header: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
             className={`flex items-center gap-2 p-1 rounded-xl transition-all ${
               themeMode === 'dark' ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
             }`}
+            title="Open Account Settings"
           >
             <div className="w-7 h-7 rounded-full bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-400 font-bold text-xs">
               {user?.name ? user.name[0].toUpperCase() : 'P'}
@@ -153,14 +154,15 @@ export const Header: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
 
           <button
             onClick={logout}
-            className={`p-2 rounded-xl border transition-all ${
+            className={`py-1.5 px-3 rounded-xl border transition-all flex items-center gap-1.5 font-bold text-xs ${
               themeMode === 'dark'
-                ? 'bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border-slate-700/60'
-                : 'bg-slate-100 hover:bg-rose-500/20 text-slate-600 hover:text-rose-500 border-slate-200'
+                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'
             }`}
-            title="Sign Out"
+            title="Sign Out / Logout of PhoneMail"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </div>

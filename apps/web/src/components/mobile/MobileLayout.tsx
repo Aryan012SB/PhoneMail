@@ -6,11 +6,11 @@ import { api } from '../../services/api';
 import {
   Menu, X, Search, Plus, Filter, Send, Paperclip, Lock, ArrowLeft, Star,
   Inbox, FileText, AlertOctagon, Trash2, Settings as SettingsIcon, PhoneCall,
-  CornerUpLeft, Mail, ChevronRight, User as UserIcon
+  CornerUpLeft, Mail, ChevronRight, User as UserIcon, LogOut
 } from 'lucide-react';
 
 export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSettings }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { themeMode } = useTheme();
   const isDark = themeMode === 'dark';
 
@@ -183,18 +183,33 @@ export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenS
               })}
             </div>
 
-            <div className={`p-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+            <div className={`p-3 border-t space-y-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <button
                 onClick={() => {
                   setDrawerOpen(false);
                   onOpenSettings();
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold ${
                   isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <SettingsIcon className="w-4 h-4 text-slate-400" />
                 <span>Settings & Aliases</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setDrawerOpen(false);
+                  logout();
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  isDark
+                    ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30'
+                    : 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
+                }`}
+              >
+                <LogOut className="w-4 h-4 text-rose-500" />
+                <span>Sign Out / Logout</span>
               </button>
             </div>
           </div>

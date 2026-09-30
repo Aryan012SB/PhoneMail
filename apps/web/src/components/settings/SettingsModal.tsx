@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
-import { X, User, Shield, Tag, Bell, Key, Plus, Trash2, CheckCircle2, RefreshCw, Sun, Moon, Palette } from 'lucide-react';
+import { X, User, Shield, Tag, Bell, Key, Plus, Trash2, CheckCircle2, RefreshCw, Sun, Moon, Palette, LogOut } from 'lucide-react';
 import { Alias } from '../../types';
 
 export const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const { themeMode, setThemeMode, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'aliases' | 'theme' | 'notifications' | 'security'>('profile');
@@ -346,9 +346,21 @@ export const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
             )}
           </div>
 
-          <div className={`pt-4 border-t flex justify-end ${
+          <div className={`pt-4 border-t flex items-center justify-between ${
             themeMode === 'dark' ? 'border-slate-800' : 'border-slate-200'
           }`}>
+            <button
+              onClick={() => {
+                onClose();
+                logout();
+              }}
+              className="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all border border-rose-500/30"
+              title="Sign Out of PhoneMail"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out / Logout</span>
+            </button>
+
             <button
               onClick={onClose}
               className={`py-2 px-4 font-bold rounded-xl text-xs transition-all ${

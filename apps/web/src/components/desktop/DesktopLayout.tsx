@@ -6,11 +6,11 @@ import { api } from '../../services/api';
 import {
   Inbox, Send, FileText, AlertOctagon, Trash2, Star, Plus, Paperclip,
   Search, RefreshCw, Lock, ArrowLeft, Mail, ChevronRight, User as UserIcon,
-  Tag, Shield, ExternalLink
+  Tag, Shield, ExternalLink, LogOut
 } from 'lucide-react';
 
 export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSettings }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { themeMode } = useTheme();
   const isDark = themeMode === 'dark';
 
@@ -52,7 +52,7 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
   ];
 
   return (
-    <div className={`flex h-[calc(100vh-53px)] overflow-hidden font-sans transition-colors duration-200 ${
+    <div className={`flex h-[calc(100vh-53px)] overflow-x-auto overflow-y-hidden font-sans transition-colors duration-200 ${
       isDark ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800'
     }`}>
       
@@ -100,23 +100,38 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
           })}
         </nav>
 
-        {/* User Alias Box */}
-        <div className={`p-3 rounded-xl border text-xs space-y-1 ${
+        {/* User Alias Box & Sign Out Button */}
+        <div className={`p-3 rounded-xl border text-xs space-y-2.5 ${
           isDark ? 'bg-slate-800/60 border-slate-700/60' : 'bg-slate-100 border-slate-200'
         }`}>
-          <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Primary Phone Email
-          </p>
-          <p className={`font-mono font-semibold truncate ${isDark ? 'text-sky-300' : 'text-blue-600'}`}>
-            {user?.emailAddress}
-          </p>
+          <div>
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Primary Phone Email
+            </p>
+            <p className={`font-mono font-semibold truncate ${isDark ? 'text-sky-300' : 'text-blue-600'}`}>
+              {user?.emailAddress}
+            </p>
+            <button
+              onClick={onOpenSettings}
+              className={`text-[10px] underline font-medium block pt-1 ${
+                isDark ? 'text-slate-400 hover:text-sky-400' : 'text-slate-500 hover:text-blue-600'
+              }`}
+            >
+              Manage Alias IDs & Settings →
+            </button>
+          </div>
+
           <button
-            onClick={onOpenSettings}
-            className={`text-[10px] underline font-medium block pt-1 ${
-              isDark ? 'text-slate-400 hover:text-sky-400' : 'text-slate-500 hover:text-blue-600'
+            onClick={logout}
+            className={`w-full py-2 px-3 rounded-xl border font-bold flex items-center justify-center gap-2 transition-all text-xs ${
+              isDark
+                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'
             }`}
+            title="Sign Out of PhoneMail"
           >
-            Manage Alias IDs & Settings →
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span>Sign Out / Logout</span>
           </button>
         </div>
       </aside>
