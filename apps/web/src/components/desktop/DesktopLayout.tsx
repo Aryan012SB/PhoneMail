@@ -6,8 +6,9 @@ import { api } from '../../services/api';
 import {
   Inbox, Send, FileText, AlertOctagon, Trash2, Star, Plus, Paperclip,
   Search, RefreshCw, Lock, ArrowLeft, Mail, ChevronRight, User as UserIcon,
-  Tag, Shield, ExternalLink, LogOut, Menu, X
+  Tag, Shield, ExternalLink, LogOut, Menu, X, MoreVertical
 } from 'lucide-react';
+import { Email } from '../../types';
 
 export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSettings }) => {
   const { user, logout } = useAuth();
@@ -23,8 +24,27 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
   const [replyText, setReplyText] = useState<string>('');
   const [replying, setReplying] = useState<boolean>(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
+  
+  const [menuEmailId, setMenuEmailId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ emailId: string; subject?: string } | null>(null);
 
   const selectedEmail = emails.find(e => e.id === selectedEmailId);
+
+  const handleTrashEmail = async (email: Email) => {
+    setMenuEmailId(null);
+    try {
+      await toggleEmailState(email.id, { isTrash: true });
+      if (selectedEmailId === email.id) {
+        setSelectedEmailId(null);
+      }
+      setToast({ emailId: email.id, subject: email.subject });
+      setTimeout(() => {
+        setToast(prev => (prev?.emailId === email.id ? null : prev));
+      }, 5000);
+    } catch (err) {
+      console.error('Failed to move email to trash:', err);
+    }
+  };
 
   const handleSendReply = async () => {
     if (!selectedEmail || !replyText.trim()) return;
@@ -241,11 +261,12 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
           ) : (
             emails.map((email) => {
               const isSelected = email.id === selectedEmailId;
+              const isMenuOpen = menuEmailId === email.id;
               return (
                 <div
                   key={email.id}
                   onClick={() => setSelectedEmailId(email.id)}
-                  className={`p-3 flex items-start gap-2.5 cursor-pointer transition-all w-full min-w-0 box-border ${
+                  className={`p-3 flex items-start gap-2.5 cursor-pointer transition-all w-full min-w-0 box-border relative ${
                     isDark ? 'hover:bg-slate-800/70' : 'hover:bg-slate-50'
                   } ${
                     isSelected ? (isDark ? 'bg-blue-500/10 border-l-4 border-blue-500' : 'bg-blue-50 border-l-4 border-blue-600') : ''
@@ -257,6 +278,7 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
                       toggleEmailState(email.id, { isFavorite: !email.isFavorite });
                     }}
                     className={`mt-0.5 shrink-0 ${isDark ? 'text-slate-500 hover:text-amber-400' : 'text-slate-400 hover:text-amber-500'}`}
+                    title={email.isFavorite ? 'Unstar' : 'Star'}
                   >
                     <Star className={`w-4 h-4 ${email.isFavorite ? 'text-amber-400 fill-amber-400' : ''}`} />
                   </button>
@@ -280,9 +302,84 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
                     </p>
                   </div>
 
-                  {email.attachments && email.attachments.length > 0 && (
-                    <Paperclip className={`w-3.5 h-3.5 shrink-0 mt-1 ${isDark ? 'text-slate-400' : 'text-slate-400'}`} />
-                  )}
+                  {/* Far Right: Attachments & Three-Dot Overflow Menu */}
+                  <div className="flex items-center gap-1 shrink-0 mt-0.5 relative">
+                    {email.attachments && email.attachments.length > 0 && (
+                      <Paperclip className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-400'}`} />
+                    )}
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuEmailId(isMenuOpen ? null : email.id);
+                      }}
+                      className={`p-1 rounded-lg transition-all shrink-0 ${
+                        isDark ? 'hover:bg-slate-700/60 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-800'
+                      }`}
+                      title="More options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    {/* Popover Dropdown Menu */}
+                    {isMenuOpen && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={`absolute right-0 top-7 z-50 w-44 rounded-xl border shadow-2xl p-1 text-xs space-y-0.5 transition-colors box-border ${
+                          isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+                        }`}
+                      >
+                        <button
+                          onClick={() => {
+                            toggleEmailState(email.id, { isRead: !email.isRead });
+                            setMenuEmailId(null);
+                          }}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                            isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                          }`}
+                        >
+                          <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <span className="truncate">{email.isRead ? 'Mark as Unread' : 'Mark as Read'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            toggleEmailState(email.id, { isFavorite: !email.isFavorite });
+                            setMenuEmailId(null);
+                          }}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                            isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                          }`}
+                        >
+                          <Star className={`w-3.5 h-3.5 shrink-0 ${email.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-amber-400'}`} />
+                          <span className="truncate">{email.isFavorite ? 'Unstar Email' : 'Star Email'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleTrashEmail(email)}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left text-rose-500 font-semibold ${
+                            isDark ? 'hover:bg-rose-500/20' : 'hover:bg-rose-50'
+                          }`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Move to Trash</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setMenuEmailId(null);
+                            setSelectedEmailId(email.id);
+                          }}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                            isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                          }`}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                          <span className="truncate">More Details</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })
@@ -438,6 +535,41 @@ export const DesktopLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpen
         }`}>
           Select an email to view its full details.
         </section>
+      )}
+
+      {/* --- TRANSPARENT BACKDROP TO CLOSE POPUP MENU ON OUTSIDE CLICK --- */}
+      {menuEmailId && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent"
+          onClick={() => setMenuEmailId(null)}
+        />
+      )}
+
+      {/* --- FLOATING SNACKBAR TOAST WITH UNDO --- */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-white shadow-2xl flex items-center gap-3 text-xs max-w-[90vw] box-border">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+            <span className="font-semibold truncate max-w-[180px] sm:max-w-[260px]">
+              Moved email to Trash
+            </span>
+          </div>
+          <button
+            onClick={async () => {
+              await toggleEmailState(toast.emailId, { isTrash: false });
+              setToast(null);
+            }}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-xs shrink-0"
+          >
+            Undo
+          </button>
+          <button
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white p-0.5 shrink-0 font-bold text-sm"
+          >
+            ×
+          </button>
+        </div>
       )}
 
     </div>

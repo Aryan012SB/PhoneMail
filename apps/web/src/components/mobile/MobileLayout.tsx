@@ -6,8 +6,9 @@ import { api } from '../../services/api';
 import {
   Menu, X, Search, Plus, Filter, Send, Paperclip, Lock, ArrowLeft, Star,
   Inbox, FileText, AlertOctagon, Trash2, Settings as SettingsIcon, PhoneCall,
-  CornerUpLeft, Mail, ChevronRight, User as UserIcon, LogOut
+  CornerUpLeft, Mail, ChevronRight, User as UserIcon, LogOut, MoreVertical, ExternalLink
 } from 'lucide-react';
+import { Conversation } from '../../types';
 
 export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSettings }) => {
   const { user, logout } = useAuth();
@@ -23,6 +24,25 @@ export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenS
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [chatInput, setChatInput] = useState<string>('');
   const [sending, setSending] = useState<boolean>(false);
+
+  const [menuConvId, setMenuConvId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ emailId: string; subject?: string } | null>(null);
+
+  const handleTrashConv = async (conv: Conversation) => {
+    setMenuConvId(null);
+    try {
+      await toggleEmailState(conv.latestEmail.id, { isTrash: true });
+      if (selectedConversationId === conv.id) {
+        setSelectedConversationId(null);
+      }
+      setToast({ emailId: conv.latestEmail.id, subject: conv.subject });
+      setTimeout(() => {
+        setToast(prev => (prev?.emailId === conv.latestEmail.id ? null : prev));
+      }, 5000);
+    } catch (err) {
+      console.error('Failed to move conversation to trash:', err);
+    }
+  };
 
   // Quick reply inside open WhatsApp-style thread
   const handleQuickSend = async () => {
@@ -319,19 +339,95 @@ export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenS
                       </p>
                     </div>
 
-                    {/* Status Badges */}
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleEmailState(conv.latestEmail.id, { isFavorite: !conv.isFavorite });
-                        }}
-                        className={`hover:text-amber-400 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}
-                      >
-                        <Star className={`w-3.5 h-3.5 ${conv.isFavorite ? 'text-amber-400 fill-amber-400' : ''}`} />
-                      </button>
+                    {/* Status Badges & Three-Dot Menu */}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0 relative">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleEmailState(conv.latestEmail.id, { isFavorite: !conv.isFavorite });
+                          }}
+                          className={`p-0.5 hover:text-amber-400 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}
+                          title="Star"
+                        >
+                          <Star className={`w-3.5 h-3.5 ${conv.isFavorite ? 'text-amber-400 fill-amber-400' : ''}`} />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuConvId(menuConvId === conv.id ? null : conv.id);
+                          }}
+                          className={`p-1 rounded-lg transition-all ${
+                            isDark ? 'hover:bg-slate-700/60 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-800'
+                          }`}
+                          title="More Options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+
                       {!conv.isRead && (
                         <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                      )}
+
+                      {/* Dropdown Popover Menu */}
+                      {menuConvId === conv.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className={`absolute right-0 top-7 z-50 w-44 rounded-xl border shadow-2xl p-1 text-xs space-y-0.5 transition-colors box-border ${
+                            isDark ? 'bg-[#202C33] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900 shadow-xl'
+                          }`}
+                        >
+                          <button
+                            onClick={() => {
+                              toggleEmailState(conv.latestEmail.id, { isRead: !conv.isRead });
+                              setMenuConvId(null);
+                            }}
+                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                              isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                            }`}
+                          >
+                            <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                            <span className="truncate">{conv.isRead ? 'Mark as Unread' : 'Mark as Read'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              toggleEmailState(conv.latestEmail.id, { isFavorite: !conv.isFavorite });
+                              setMenuConvId(null);
+                            }}
+                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                              isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                            }`}
+                          >
+                            <Star className={`w-3.5 h-3.5 shrink-0 ${conv.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-amber-400'}`} />
+                            <span className="truncate">{conv.isFavorite ? 'Unstar Email' : 'Star Email'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleTrashConv(conv)}
+                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left text-rose-500 font-semibold ${
+                              isDark ? 'hover:bg-rose-500/20' : 'hover:bg-rose-50'
+                            }`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Move to Trash</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setMenuConvId(null);
+                              setSelectedConversationId(conv.id);
+                            }}
+                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all text-left ${
+                              isDark ? 'hover:bg-slate-700/70' : 'hover:bg-slate-100'
+                            }`}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                            <span className="truncate">View Thread</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -439,6 +535,41 @@ export const MobileLayout: React.FC<{ onOpenSettings: () => void }> = ({ onOpenS
               <Send className="w-4 h-4" />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* --- TRANSPARENT BACKDROP TO CLOSE POPUP MENU ON OUTSIDE CLICK --- */}
+      {menuConvId && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent"
+          onClick={() => setMenuConvId(null)}
+        />
+      )}
+
+      {/* --- FLOATING SNACKBAR TOAST WITH UNDO --- */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-white shadow-2xl flex items-center gap-3 text-xs max-w-[90vw] box-border">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+            <span className="font-semibold truncate max-w-[180px] sm:max-w-[260px]">
+              Moved to Trash
+            </span>
+          </div>
+          <button
+            onClick={async () => {
+              await toggleEmailState(toast.emailId, { isTrash: false });
+              setToast(null);
+            }}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-xs shrink-0"
+          >
+            Undo
+          </button>
+          <button
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white p-0.5 shrink-0 font-bold text-sm"
+          >
+            ×
+          </button>
         </div>
       )}
 
