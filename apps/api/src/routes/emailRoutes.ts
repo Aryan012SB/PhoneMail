@@ -442,8 +442,14 @@ router.get('/conversations/:id', authMiddleware, async (req: AuthRequest, res: R
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
+    // Filter out trashed emails from thread view for this user
+    const nonTrashedEmails = conversation.emails.filter(e => {
+      const state = e.userStates && e.userStates[0];
+      return !state || !state.isTrash;
+    });
+
     // Mark emails in this conversation as READ & SEEN for current user
-    const emailIds = conversation.emails.map(e => e.id);
+    const emailIds = nonTrashedEmails.map(e => e.id);
     for (const emailId of emailIds) {
       await prisma.userEmailFolder.upsert({
         where: { userId_emailId: { userId, emailId } },
@@ -456,7 +462,10 @@ router.get('/conversations/:id', authMiddleware, async (req: AuthRequest, res: R
       });
     }
 
-    return res.json(conversation);
+    return res.json({
+      ...conversation,
+      emails: nonTrashedEmails,
+    });
   } catch (error: any) {
     console.error('Fetch thread error:', error);
     return res.status(500).json({ error: 'Failed to fetch conversation detail.' });
@@ -538,9 +547,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       .filter(email => {
         // Folder filtering
         if (folder === 'inbox' && (email.isSpam || email.isTrash || email.isArchived)) return false;
+        if (folder === 'sent' && (email.isSpam || email.isTrash || email.isArchived)) return false;
+        if (folder === 'drafts' && (email.isSpam || email.isTrash || email.isArchived)) return false;
         if (folder === 'spam' && !email.isSpam) return false;
         if (folder === 'trash' && !email.isTrash) return false;
-        if (folder === 'favorites' && !email.isFavorite) return false;
+        if (folder === 'favorites' && (!email.isFavorite || email.isTrash)) return false;
         if (folder === 'archive' && (!email.isArchived || email.isTrash)) return false;
         if (folder === 'important' && (!email.isImportant || email.isTrash)) return false;
 
