@@ -108,7 +108,7 @@ router.post('/otp/request', rateLimitMiddleware, async (req: any, res: Response)
       success: true,
       message: result.message,
       phoneNumber: normalized,
-      debugOtp: result.debugOtp || '123456',
+      debugOtp: result.debugOtp,
     });
   } catch (error: any) {
     console.error('OTP request error:', error);

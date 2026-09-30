@@ -28,7 +28,7 @@ async function runTestSuite() {
     const sendResult = await otpProvider.sendOtp('99900011122');
     assert(sendResult.success === true, '1. OTP Provider sends OTP code successfully');
 
-    const verifyResult = await otpProvider.verifyOtp('99900011122', '123456');
+    const verifyResult = await otpProvider.verifyOtp('99900011122', sendResult.debugOtp!);
     assert(verifyResult === true, '2. OTP Provider verifies 6-digit code correctly');
 
     // 2. Test User Account Creation & Email ID Generation

@@ -9,8 +9,8 @@ export interface OtpProvider {
 
 export class MockOtpProvider implements OtpProvider {
   async sendOtp(phoneNumber: string): Promise<{ success: boolean; message: string; debugOtp?: string }> {
-    // Generate 6-digit OTP (e.g. 123456 or random)
-    const otpCode = config.devMode ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate randomized 6-digit OTP (e.g. 583921)
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const codeHash = await bcrypt.hash(otpCode, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -41,10 +41,6 @@ export class MockOtpProvider implements OtpProvider {
   }
 
   async verifyOtp(phoneNumber: string, otp: string): Promise<boolean> {
-    if (config.devMode && (otp === '123456' || otp === '000000')) {
-      return true; // Always allow mock OTP 123456 in development mode for 1-click demo login
-    }
-
     const record = await prisma.otp.findFirst({
       where: {
         phoneNumber,
